@@ -1,0 +1,35 @@
+.start_byte {
+    color: blueviolet
+}
+.control_sum {
+    color: blue
+}
+.address {
+    color: chartreuse
+}
+.imp_data {
+    color: red
+}
+div {
+    padding: 0 5px;
+}
+.all_tbl {
+    padding: 1em;
+    display: grid;
+    grid-template-columns: auto auto auto auto 1fr
+}
+.tbl_head {
+    background-color: aqua
+}
+.full_head {
+    grid-column: 1/-1;
+    text-align: center;
+}
+.darker {
+    background-color: aliceblue
+}
+.all_tbl2 {
+    padding: 1em;
+    display: grid;
+    grid-template-columns: auto 1fr
+}

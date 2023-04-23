@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Blinds-RS485</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="main.css">
+</head>
+<body>
+   <h1>Blinds-RS485. Описание команд.</h1> 
+   <div>
+       <p>
+        Устройство упрощает интеграцию электрокарнизов, электрожалюзи и подобных устройств, поддерживающих протокол RS485 компании Dooya в системы "Умного дома" ( Home Assistant, Domoticz, MajorDoMo, Node-Red и т.п.)
+       </p>
+       <p>
+        Низкоуровневый протокол заменён понятными тестовыми командами, что облегчает чтение и понимание происходящего в системе. При этом ответы от исполнительных устройств отображаются в виде кодов, что делает простой их обработку системами домашней автоматизации. Ошибки выдаются текстом, что так же удобно - ошибки чаще всего возникают на этапе настройки системы и должны читаться человеком. После настройки система получает коды, которые легко обрабатывать программным обеспечением.
+       </p>
+       <p>
+        Контрольная сумма при отправке команд вычисляется самим устройством.
+       </p>
+       <p>
+        Подстройка к временным интервалам и времени ответа исполнительных устройств делается автоматически. Как показала практика, временные интервалы у разных устройств, отличаются более, чем в 10 раз. Подключение одного медленного устройства, если не делать адаптацию, приведёт либо к тому, что медленное устройство не будет работать, либо вся система будет работать с максимальными задержками. С blinds-rs485 команды отправляются на максимально возможной скорости, адаптируя временные интервалы для медленных и быстрых устройств. Это важно для быстрого опроса состояния большого количества устройств. В традиционных операционных системах (не реального времени) затруднительно получать небольшие временные интервалы при формировании протокола, что снижает производительность и сказывается на высоко нагруженных системах, либо системах с ограниченными ресурсами.
+       </p>
+       <p>
+        Есть буфер команд - можно отправлять команды подряд, не дожидаясь выполнения предыдущих. Это бывает необходимо в системах умного дома, когда последовательности команд (например опрос состояния всех устройств с интервалом в 1 сек.) формируются программным обеспечением автоматически.
+       </p>
+       <p>
+        Больше не нужно разрабатывать и поддерживать драйвера для каждой системы - все особенности протокола, весь накапливаемый опыт сосредотачивается в одном месте - во внешнем устройстве.
+       </p>
+       <p>
+        При самостоятельной реализации протокола не хватает времени на учёт всех особенностей протокола, на реализацию всех команд. Обычно реализуются только базовые команды. На остальное нет времени.
+       </p>
+       <p>
+        Настройки для каждого устройства можно сохранять или подготовить перед монтажом на объекте. Это позволяет часть работы выполнить заранее и сокращает время нахождения непосредственно на объекте.
+       </p>
+       <h2>
+        Примеры команд.
+       </h2>
+       <p>
+        Открыть жалюзи 1 в группе 12:
+       </p>
+       <code>
+        open 12 1
+       </code>
+       <p>
+        Если вместо 1 указать 0, то команду выполнят все устройства в группе:
+       </p>
+       <code>
+        close 12 0
+       </code>
+       <p>
+        Если оба параметра указать, как 0, команду выполнят все устройства: 
+       </p>
+       <code>
+        stop 0 0
+       </code>
+       <p>
+        Если вам удобнее, параметры и команду можно менять местами:
+       </p>
+       <code>
+        12 1 open
+       </code>
+       <p>
+        Или даже разместить по середине:
+       </p>
+       <code>
+        12 1 close% 30
+       </code>
+       <p>
+        Можно указывать параметры в шестнадцатеричной форме. Перед параметром в этом случае нужно поставить символ “$”:
+       </p>
+       <code>
+        $c 1 open
+       </code>
+       <p>
+        Все ответы от устройств отображаются в шестнадцатеричном виде. Символ $ при этом не выводится.
+       </p>
+       <h3>
+        Пояснения к таблице:
+       </h3>
+       <h4>
+        Пояснения по цветам (легенда):
+       </h4>
+       <p class="start_byte">
+        55 - стартовый байт, всегда 0x55, начало пакета
+       </p>
+       <p class="control_summ">
+        F7 D6 - контрольная сумма
+       </p>
+       <p class="address">
+        02 fe- адрес устройства, от которого получен ответ. fe - группа, 02 - адрес устройства в группе
+       </p>
+       <p class="imp_data">
+        A4 - то, на что нужно обратить внимание. Это данные, в ответе, которые нас интересуют
+       </p>
+       <div class="all_tbl">
+           <div class="tbl_head full_head">
+            Команды управления
+           </div>
+           <div class="tbl_head">
+            Команда
+           </div>
+           <div class="tbl_head">
+            Параметры
+           </div>
+           <div class="tbl_head">
+            Описание
+           </div>
+           <div class="tbl_head">
+            Ответ
+           </div>
+           <div class="tbl_head">
+            Пояснение
+           </div>
+           <div>
+            open
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Открыть
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 01 
+            <span class="control_sum">89 74</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            close
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Закрыть
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 02 
+            <span class="control_sum">C9 75</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            stop
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Стоп
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 03 
+            <span class="control_sum">08 B5</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            close%
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+            <a href="#detiles_xx%">xx%</a>
+           </div>
+           <div class="darker">
+            Закрыть на xx%
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 04 
+            <span class="imp_data">1E</span>
+            <span class="control_sum">89 74</span> 
+           </div>
+           <div class="darker">
+            Это ответ на команду: $fe 2 close% 30 ($<span class="imp_data">1E</span> = 30)
+           </div>
+
+           <div>
+            top_limit_set
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Задать крайнее верхнее положение (если это рулонная штора)
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 05 01
+            <span class="control_sum">76 A6</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            buttom_limit_set
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Задать крайнее нижнее положение
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 05 02
+            <span class="control_sum">36 A7</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            limit3_set
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Установить промежуточный лимит
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 05 03
+            <span class="control_sum">F7 67</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            limit4_set
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Установить ещё один промежуточный лимит
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 05 FF
+            <span class="control_sum">F7 26</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            run_to_top
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Открыть до верхнего лимита
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 06 01
+            <span class="control_sum">76 56</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            run_to_buttom
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Закрыть до нижнего лимита
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 06 02
+            <span class="control_sum">36 57</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            run_to_limit3
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Закрыть до первого промежуточного лимита
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 06 03
+            <span class="control_sum">F7 97</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            run_to_limit4
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Закрыть до второго промежуточного лимита
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 06 FF
+            <span class="control_sum">F7 D6</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            top_limit_del
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Удалить верхний лимит
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 07 01
+            <span class="control_sum">77 C6</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            buttom_limit_del
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Удалить нижний лимит
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 07 02
+            <span class="control_sum">37 C7</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            limit3_del
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Удалить первый промежуточный лимит
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 07 03
+            <span class="control_sum">F6 07</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            limit4_del
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Удалить второй промежуточный лимит
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 07 FF
+            <span class="control_sum">F6 46</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            del_limits
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Удалить все лимиты разом
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 07
+            <span class="control_sum">09 76</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            fact_reset
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Сбросить все настройки к заводским установкам
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 08 
+            <span class="control_sum">79 22</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            set_scene_mode
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+            <a href="#detiles_mod">mod</a>
+           </div>
+           <div>
+            Задать сцену
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 09 01 
+            <span class="control_sum">73 A6</span> 
+           </div>
+           <div>
+            Это ответ на команду: $fe 2 set_scene_mode 1
+           </div>
+
+           <div class="darker">
+            operate_scene_mode
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+            <a href="#detiles_mod">mod</a>
+           </div>
+           <div class="darker">
+            Перейти к сцене
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 0A 01 
+            <span class="control_sum">73 56</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            delete_scene_mode
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+            <a href="#detiles_mod">mod</a>
+           </div>
+           <div>
+            Удалить сцену
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 0B 01
+            <span class="control_sum">72 C6</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            opposite
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Если предыдущая команда была “открыть”, будет выполнена команда “закрыть”
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            03 0F FF
+            <span class="control_sum">F1 86</span> 
+           </div>
+           <div class="darker">
+           </div>
+           </div class="darker">
+       </div>
+
+       <div class="all_tbl">
+           <div class="tbl_head full_head">
+            Команды чтения значений
+           </div>
+           <div class="tbl_head">
+            Команда
+           </div>
+           <div class="tbl_head">
+            Параметры
+           </div>
+           <div class="tbl_head">
+            Описание
+           </div>
+           <div class="tbl_head">
+            Ответ
+           </div>
+           <div class="tbl_head">
+            Пояснение
+           </div>
+           <div>
+            position?
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Позиция шторы в процентах
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01 
+            <span class="imp_data">14</span>
+            <span class="control_sum">14 69</span> 
+           </div>
+           <div>
+            Шестой байт ($14 = 20%) показывает, насколько закрыта штора
+           </div>
+
+           <div class="darker">
+            default_direction?
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Направление вращения мотора по-умолчанию
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01 
+            <span class="imp_data">00</span>
+            <span class="control_sum">14 66</span> 
+           </div>
+           <div class="darker">
+            00 - направление после сброса к заводским установкам,<br /> 
+            01 - противоположное
+           </div>
+
+           <div>
+            hand_pulling_status?
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Направление движения шторы, при подталкивании рукой
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01 
+            <span class="imp_data">01</span>
+            <span class="control_sum">D5 A6</span> 
+           </div>
+           <div>
+            00 - открываются (состояние после сброса к заводским установкам)<br />
+            01 - закрываются или функция отключена
+           </div>
+
+           <div class="darker">
+            motor_status?
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Состояние мотора
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01 
+            <span class="imp_data">00</span>
+            <span class="control_sum">14 66</span> 
+           </div>
+           <div class="darker">
+            00 - остановлен<br />
+            01 - штора открывается<br />
+            02 - штора закрывается<br />
+            03 - мотор в режиме программирования
+           </div>
+
+           <div>
+            current_angle?
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Угол, на который открыты жалюзи
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">00</span>
+            <span class="control_sum">14 66</span> 
+           </div>
+           <div>
+            Может принимать значения 0 - 180
+           </div>
+
+           <div class="darker">
+            adjusting_angle?
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Направление подстройки угла жалюзи
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">00</span>
+            <span class="control_sum">14 66</span> 
+           </div>
+           <div class="darker">
+            00 - направление после сброса к заводским установкам<br />
+            01 - противоположное
+           </div>
+
+           <div>
+            angle_coefficient?
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Коэффициент угла
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">78</span>
+            <span class="control_sum">14 44</span> 
+           </div>
+           <div>
+            Может принимать значения 0 - 255
+           </div>
+
+           <div class="darker">
+            limit_position?
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Показывает какие лимиты заданы (Если бит установлен в 1 - лимит задан)
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">0E</span>
+            <span class="control_sum">95 A2</span> 
+           </div>
+           <div class="darker">
+            При установленных верхнем, нижнем и промежуточномлимите - 0E (1110). Если сбросить промежуточный лимит - 06(0110)
+           </div>
+
+           <div>
+            jogging_mode?
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Режим подхватывания при подталкивании штор рукой
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">00</span>
+            <span class="control_sum">14 66</span> 
+           </div>
+           <div>
+            00 - выключен<br />
+            01 - включен
+           </div>
+
+           <div class="darker">
+            power_on_remind?
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Реакция мотора на подключение к сети
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">03</span>
+            <span class="control_sum">54 67</span> 
+           </div>
+           <div class="darker">
+            00 - реакции нет<br />
+            01 - подаётся звуковой сигнал<br />
+            02 - делается вращение мотором<br />
+            03 - и звуковой сигнал и вращение
+           </div>
+
+           <div>
+            device_type?
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Тип мотора
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">11</span>
+            <span class="control_sum">D4 6A</span> 
+           </div>
+           <div>
+            11 - рулонная штора<br />
+            12 - венецианская штора
+           </div>
+
+           <div class="darker">
+            channel_of_module?
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Канал модуля
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">01</span>
+            <span class="control_sum">D5 A6</span> 
+           </div>
+           <div class="darker">
+            Может принимать значения 0-15
+           </div>
+
+           <div>
+            passive_external_switch_type?
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Тип пульта (выключателя)
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">00</span>
+            <span class="control_sum">14 66</span> 
+           </div>
+           <div>
+            00 - Двойной переключатель без фиксации (значение по умолчанию)<br />
+            01 - Двойной перекидной выключатель<br />
+            02 - DC246<br />
+            03 - Однокнопочный. Переключение происходит “по кругу”
+           </div>
+
+           <div class="darker">
+            voltage_external_switch_type?
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Тип пульта (выключателя)
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">00</span>
+            <span class="control_sum">14 66</span> 
+           </div>
+           <div class="darker">
+                00 - Двухпроводный (значение по умолчанию)<br />
+                01 - Однопроводный
+           </div>
+
+           <div>
+            software_version?
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Версия программного обеспечения мотора
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">A1</span>
+            <span class="control_sum">D5 DE</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            protocol_version?
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Версия протокола
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            01 01
+            <span class="imp_data">A4</span>
+            <span class="control_sum">15 DD</span> 
+           </div>
+           <div class="darker">
+           </div>
+       </div>
+
+       <div class="all_tbl">
+           <div class="tbl_head full_head">
+            Команды записи значений
+           </div>
+           <div class="tbl_head">
+            Команда
+           </div>
+           <div class="tbl_head">
+            Параметры
+           </div>
+           <div class="tbl_head">
+            Описание
+           </div>
+           <div class="tbl_head">
+            Ответ
+           </div>
+           <div class="tbl_head">
+            Пояснение
+           </div>
+           <div>
+            write_device_address
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+            id_h_new id_l_new
+           </div>
+           <div>
+            Задать новый адрес устройства
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 00 02
+            <span class="control_sum">64 37</span> 
+           </div>
+           <div>
+            Это ответ на команду:<br /> 
+            $fe $fe write_device_address $fe 2
+           </div>
+
+           <div class="darker">
+            straight_direction_set
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Установить направление вращения вала мотора в значение по умолчанию
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 03 01
+            <span class="control_sum">24 C6</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            reverse_direction_set
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Установить направление вращения вала мотора в значение противоположное, значению по умолчанию
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 03 01
+            <span class="control_sum">24 C6</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            hand_pulling_set
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            При подталкивании шторы рукой, штора открывается
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 04 01
+            <span class="control_sum">26 F6</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            hand_pulling_reset
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            При подталкивании шторы рукой, штора закрывается, либо функция отключена
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 04 01
+            <span class="control_sum">26 F6</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            adj_angle_straight_direction_set
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Установить направление подстройки угла жалюзи в значение по умолчанию
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 07 01
+            <span class="control_sum">26 06</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            adj_angle_reverse_direction_set
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Установить направление подстройки угла жалюзи в значение противоположное значению по умолчанию
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 07 01
+            <span class="control_sum">26 06</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            angle_coefficient_set
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+            ang_coef
+           </div>
+           <div class="darker">
+            Задать коэффициент угла
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 08 01
+            <span class="control_sum">23 F6</span> 
+           </div>
+           <div class="darker">
+            Может принимать значения 0 - 255
+           </div>
+
+           <div>
+            jogging_set
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Установить режим подхватывания при подталкивании штор рукой
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 0A 01
+            <span class="control_sum">22 96</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            jogging_reset
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Отменить режим подхватывания при подталкивании штор рукой
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 0A 01
+            <span class="control_sum">22 96</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            mute_power_on 
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            При подаче питания на мотор никак на это не реагировать
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 0C 01
+            <span class="control_sum">21 36</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            beep_power_on
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            При подаче питания на мотор подать звуковой сигнал
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 0C 01
+            <span class="control_sum">21 36</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            rotation_power_on
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            При подаче питания на мотор повернуть вал двигателя
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 0C 01
+            <span class="control_sum">21 36</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            rotation&beep_power_on
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            При подаче питания на мотор подать звуковой сигнал и повернуть вал двигателя
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 0C 01
+            <span class="control_sum">21 36</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            rebound_switch_set
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Задать двойной переключатель без фиксации (значение по умолчанию)
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 27 01
+            <span class="control_sum">3F C6</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            non_rebound_switch_set 
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Задать двойной перекидной выключатель
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 27 01
+            <span class="control_sum">3F C6</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            dc246_switch_set
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Задать пультом управления DC246
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 27 01
+            <span class="control_sum">3F C6</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            recycle_switch_set
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Задать управление мотором однокнопочным переключтелем. Переключение происходит “по кругу”
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 27 01
+            <span class="control_sum">3F C6</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+           <div>
+            1_wire_switch_set
+           </div>
+           <div>
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div>
+            Тип пульта - Однопроводный
+           </div>
+           <div>
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 28 01
+            <span class="control_sum">3A 36</span> 
+           </div>
+           <div>
+           </div>
+
+           <div class="darker">
+            2_wire_switch_set  
+           </div>
+           <div class="darker">
+            <a href="#detiles_id_h">id_h</a>
+            <a href="#detiles_id_l">id_l</a>
+           </div>
+           <div class="darker">
+            Тип пульта - Двухпроводный
+           </div>
+           <div class="darker">
+            <span class="start_byte">55</span>
+            <span class="address">02 FE</span> 
+            02 28 01
+            <span class="control_sum">3A 36</span> 
+           </div>
+           <div class="darker">
+           </div>
+
+       </div>
+
+       <div class="all_tbl2">
+           <div class="tbl_head full_head">
+            Команды, выполняемые самим модулем blinds-rs485 (не моторами)
+           </div>
+           <div class="tbl_head">
+            Команда
+           </div>
+           <div class="tbl_head">
+            Описание
+           </div>
+
+           <div>
+            help
+           </div>
+           <div>
+            Выводит ссылку на страницу с документацией
+           </div>
+
+           <div class="darker">
+            version
+           </div>
+           <div class="darker">
+            Выводит версию программного обеспечения самого blinds-rs485
+           </div>
+
+           <div>
+            cmd_list
+           </div>
+           <div>
+            Выводит перечень команд, поддерживаемых blinds-rs485
+           </div>
+
+           <div class="darker">
+            empty_slot?
+           </div>
+           <div class="darker">
+            Выводит 1, если в буфере команд достаточно места ( более 10 байт) для записи очередной команды. 0, если недостаточно.
+           </div>
+
+       </div>
+   </div>
+   <p id="detiles_id_h">
+    Параметр id_h — это номер группы. Может принимать значение от 0 до 254 ($FE). В группу может входить до 254 моторов.
+   </p>
+   <p id="detiles_id_l">
+    Параметр id_l — это номер мотора в группе. Может принимать значение от 0 до 254 ($FE). Если указать 0, то команду выполнят все моторы, входящие в группу. Так одной командой, можно, например разом закрыть все шторы в одном помещении.
+   </p>
+   <p>
+    Если указать в команде id_h = 0 и id_l = 0 команду выполнят все моторы в системе.
+   </p>
+   <p id="detiles_xx%">
+    Параметр xx% может принимать значения от 0 до 100 ($64). Обозначает долю в процентах, на которую будут закрыты шторы или жалюзи.
+   </p>
+   <p id="detiles_mod">
+    Параметр mode может принимать значения от 1 до 64. Работает только, если установлены верхний и нижний лимиты.
+   </p>
+</body>
+</html>
